@@ -5,8 +5,8 @@ import sys
 from sqlalchemy import create_engine, inspect
 
 
-def test_migration(tmp_path):
-    url = f"sqlite:///{tmp_path / 'migration.db'}"
+def test_migration(database_url):
+    url = database_url
     env = dict(os.environ, DATABASE_URL=url)
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], env=env, check=True)
     engine = create_engine(url)
