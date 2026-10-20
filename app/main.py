@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.master_data import router as master_router
+from app.sales import invoice_router
 from app.sales import router as sales_router
 
 
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 app.include_router(master_router, dependencies=[Depends(require_key)])
 app.include_router(sales_router, dependencies=[Depends(require_key)])
+app.include_router(invoice_router, dependencies=[Depends(require_key)])
 
 
 @app.get("/health")
