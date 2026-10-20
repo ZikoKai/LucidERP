@@ -3,9 +3,13 @@ from secrets import compare_digest
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
+from app.agent import ActionRead, DecisionRequest, attach_order, claim_decision
+from app.agent import router as agent_router
+from app.core import get_db
 from app.master_data import router as master_router
-from app.sales import invoice_router
+from app.sales import OrderCreate, create_order, invoice_router
 from app.sales import router as sales_router
 
 
@@ -25,6 +29,39 @@ app.add_middleware(
 app.include_router(master_router, dependencies=[Depends(require_key)])
 app.include_router(sales_router, dependencies=[Depends(require_key)])
 app.include_router(invoice_router, dependencies=[Depends(require_key)])
+app.include_router(agent_router, dependencies=[Depends(require_key)])
+
+
+@app.post(
+    "/agent-actions/{action_id}/approve",
+    response_model=ActionRead,
+    dependencies=[Depends(require_key)],
+)
+def approve(action_id: int, data: DecisionRequest, db: Session = Depends(get_db)):
+    # Composition root owns the human-authorized transaction, outside the agent module.
+    try:
+        action = claim_decision(db, action_id, "approuvee", data.decide_par)
+        order_data = OrderCreate.model_validate({**action.payload, "statut": "validee"})
+        order = create_order(db, order_data)
+        attach_order(action, order.id)
+        db.commit()
+        db.refresh(action)
+        return action
+    except Exception:
+        db.rollback()
+        raise
+
+
+@app.post(
+    "/agent-actions/{action_id}/reject",
+    response_model=ActionRead,
+    dependencies=[Depends(require_key)],
+)
+def reject(action_id: int, data: DecisionRequest, db: Session = Depends(get_db)):
+    action = claim_decision(db, action_id, "rejetee", data.decide_par)
+    db.commit()
+    db.refresh(action)
+    return action
 
 
 @app.get("/health")
