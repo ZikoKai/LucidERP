@@ -1,8 +1,9 @@
 import os
 from secrets import compare_digest
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.agent import ActionRead, DecisionRequest, attach_order, claim_decision
@@ -20,6 +21,19 @@ def require_key(x_api_key: str | None = Header(default=None)):
 
 
 app = FastAPI(title="LucidERP", version="0.1.0")
+
+
+@app.middleware("http")
+async def protect_all_routes(request: Request, call_next):
+    if request.url.path != "/health":
+        try:
+            require_key(request.headers.get("X-API-Key"))
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return await call_next(request)
+
+
+# Add CORS last so browser preflights are processed outside the key gate.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],

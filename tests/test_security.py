@@ -1,7 +1,16 @@
 def test_api_key(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "test-secret")
     assert client.get("/health").status_code == 200
-    for path in ("/contacts", "/products", "/orders", "/invoices", "/agent-actions"):
+    for path in (
+        "/contacts",
+        "/products",
+        "/orders",
+        "/invoices",
+        "/agent-actions",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+    ):
         assert client.get(path).status_code == 401
         assert client.get(path, headers={"X-API-Key": "wrong"}).status_code == 401
         assert client.get(path, headers={"X-API-Key": "test-secret"}).status_code == 200
@@ -14,7 +23,8 @@ def test_api_key(client, monkeypatch):
         assert client.post(path, json={"text": "x", "decide_par": "Alice"}).status_code == 401
 
 
-def test_cors(client):
+def test_cors(client, monkeypatch):
+    monkeypatch.setenv("API_KEY", "test-secret")
     response = client.options(
         "/orders",
         headers={
