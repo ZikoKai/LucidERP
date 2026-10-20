@@ -11,6 +11,22 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: ruff check .
       - run: pytest
+  postgres:
+    runs-on: ubuntu-24.04
+    env:
+      TEST_DATABASE_URL: postgresql://luciderp_test:ci_disposable_password@localhost:5432/luciderp_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Start the runner's PostgreSQL installation
+        run: |
+          sudo systemctl start postgresql
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE USER luciderp_test WITH PASSWORD 'ci_disposable_password';"
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE luciderp_test OWNER luciderp_test;"
+      - run: pip install -e '.[dev]'
+      - run: pytest
   frontend:
     runs-on: ubuntu-latest
     steps:
